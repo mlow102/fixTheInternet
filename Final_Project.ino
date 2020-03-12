@@ -1,4 +1,11 @@
-//Including external libraries to assist the program.
+/*Arduino Source Code for
+ * 'Fix The Internet' Project
+ * Written by Matthew Low
+ * Low.m@northeastern.edu
+ * Version 2.1
+ */
+ 
+ //Including external libraries to assist the program.
 #include <LiquidCrystal_I2C.h>
 #include <ShiftOutX.h>
 #include <ShiftPinNo.h>
@@ -15,9 +22,11 @@ private:
   //The pin assignments are made unique to each city to allow easy adjustment later.
   int inputPin, outputPin, ledState, rank, redLedPin, greenLedPin;
   bool isFailed, outputState;
+  String cityName;
   
   //This is the constructor function
- public: City(int input, int output, int led, int r, bool failed, int redledP, int greenled){
+ public: City(String citName, int input, int output, int led, int r, bool failed, int redledP, int greenled){
+  cityName = citName;
   inputPin = input;
   outputPin = output;
   ledState = led;
@@ -30,6 +39,10 @@ private:
    //get and set functions below
   public: int getInputPin(){
     return inputPin;
+  }
+
+  public: String getName(){
+    return cityName;
   }
 
   public: int getOutputPin(){
@@ -99,31 +112,26 @@ public: void failCity(){
 static int NUM_CITIES = 8; 
 
 //define pinouts here
-//City(input pin, output pin, led state, rank,is failed,red led pin, green led pin)
-City c1(shPin1,A1,0,0,true,shPin9,shPin17);
-City c2(shPin2,A2,0,1,false,shPin10,shPin18);
-City c3(shPin3,A3,0,2,false,shPin11,shPin19);
-City c4(shPin4,A0,0,3,false,shPin12,shPin20);
-City c5(shPin5,7,0,4,false,shPin13,shPin21);
-City c6(shPin6,8,0,5,false,shPin14,shPin22);
-City c7(shPin7,9,0,6,false,shPin15,shPin23);
-City c8(shPin8,6,0,7,false,shPin16,shPin24);
+//City(name, input pin, output pin, led state, rank,is failed,red led pin, green led pin)
+City c1("Las Vegas",2,shPin1,0,0,false,shPin9,shPin17);
+City c2("Spokane",3,shPin2,0,1,false,shPin10,shPin18);
+City c3("Denver",4,shPin3,0,2,false,shPin11,shPin19);
+City c4("Dallas",5,shPin4,0,3,false,shPin12,shPin20);
+City c5("Kansas City",6,shPin5,0,4,false,shPin13,shPin21);
+City c6("Chicago",7,shPin6,0,5,false,shPin14,shPin22);
+City c7("Charlotte",9,shPin7,0,6,false,shPin15,shPin23);
+City c8("Washington D.C.",10,shPin8,0,7,false,shPin16,shPin24);
 //create the array of city objects for use later.
 City cityArr[8] = {c1,c2,c3,c4,c5,c6,c7,c8};
 
 //more pin definitions.
-int latchPin = 2;   // pin  12 on the 74hc595
-int dataPin = 3;   // pin 14 on the 74hc595
-int clockPin = 4;  // pin 11 on the 74hc595
-int buttonPin = 5;
-int finishPin = 10;
+int buttonPin = 13;
+int finishPin = A0;
 
 
 void setup(){
+regOne.allOff();
 //defining pinmodes
-pinMode(latchPin, OUTPUT);
-pinMode(clockPin, OUTPUT);
-pinMode(dataPin, OUTPUT);
 pinMode(buttonPin, INPUT);
 /* These are only used if the output pins are NOT on the shift register.
 pinMode(c1.getOutputPin(),OUTPUT);
@@ -164,48 +172,65 @@ pinMode(c8.getGreenLedPin(),OUTPUT); */
   Serial.begin(9600);
   Serial.println("Initializing Game");
   for(int i = 0;i < NUM_CITIES;i++){
-     Serial.print("City ");
-     Serial.print(i+1);
-     Serial.print(" Has In/Out pins: ");
-     Serial.print(cityArr[i].getInputPin());
-     Serial.print("/");
-     Serial.println(cityArr[i].getOutputPin());
+     Serial.print(cityArr[i].getName());
+     Serial.print(" Failed: ");
+     Serial.println(cityArr[i].getIsFailed());
   }
 }
 long count = 0;
 void loop(){
-Serial.println(count);
+//Serial.println(count);
 //Executes the loop if there has been 1 minute of inactivity or button is pressed.
-if((count > 60000)||(digitalRead(buttonPin)==LOW)){
+if((count > 60000)){
+  Serial.println("Beginning Randomization Process");
 //makes all cities working before one is randomly failed.
 for(int i=0;i<NUM_CITIES;i++){
  if(cityArr[i].getIsFailed()){ 
   cityArr[i].unfailCity(); 
+  Serial.println(cityArr[i].getName() + " Has been unfailed sucessfully");
+ }else{
+  Serial.println(cityArr[i].getName() + "Did not need to be unfailed");
  }
  //randomly picks connected cities to fail. Will loop infintley until a city is picked.
- bool isComplete = true;
- while(!isComplete){
+ bool isComplete = false;
+ bool noneAval = true;
+  for(int i = 0; i < NUM_CITIES ; i++){
+    if(cityArr[i].getLedState()== 1){
+      noneAval = false;
+      Serial.println(cityArr[i].getName() + "Is currently connected (can be failed)");
+    }
+  }
   int randomNum = random(0,7);
+  if(noneAval){
+    Serial.println("No cities avalable for failure");
+  }
+  if(!noneAval){
   if(cityArr[randomNum].getLedState()==1){
     cityArr[randomNum].failCity();
-    //isComplete = true; //temporarily disabled due to infinite loop when testing.
+    Serial.println(cityArr[i].getName() + "IS FAILED");
+    isComplete = true; 
  }
-
+  }
  }
 }
  count = 0; //1 min clock is reset after the new city is failed.
-} //end of changing failed city loop
+ //end of changing failed city loop
 
 bool flashState = false; //variable to help blinking the LED.
 for(int i = 0; i < NUM_CITIES; i++){
   if(digitalRead(cityArr[i].getInputPin()) == HIGH){
     if(cityArr[i].getLedState() == 1){
      count = 0;//clock is reset because user activity is detected.
-      if(cityArr[i].getLedState() != 2){
+     if(cityArr[i].getLedState() != 2){
+          Serial.println(cityArr[i].getName() + "IS RECIEVING  NEW INPUT");
         cityArr[i].setLedState(1);
       }else{
+        
         cityArr[i].setLedState(0);
+    
     }
+    }
+      
   }//end of if else logic block
 
   if(cityArr[i].getLedState() == 0){
@@ -241,7 +266,7 @@ if(digitalRead(finishPin==HIGH)){
 }//end of for loop
 
 
-}
+
 delay(10); //ensures code doesn't run too fast for the timer. We don't need 1ms resolution however.
 count+=20; //adjust the scaling factor here.
 }
