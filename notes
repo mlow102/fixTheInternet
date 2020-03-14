@@ -1,0 +1,6 @@
+Notes on getting the code to work
+  Update the port location to be specific to your arduino 
+  The app reads the name of the city that has failed from a print beginning with CITY
+  The app reads that boston has been connected when MATLAB BOSTON ON has been printed
+  The app reads that the reset button has been pushed when MATLAB Reset has been printed
+  The app goes back to the home page after idling on the congrats page for a minute
