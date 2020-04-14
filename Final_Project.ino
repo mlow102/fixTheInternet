@@ -1,149 +1,103 @@
-/*Arduino Source Code for
- * 'Fix The Internet' Project
- * Written by Matthew Low
- * Low.m@northeastern.edu
+/*
+ * Fix The Internet! Program Code
+ * Team DuckDuctTape
+ * 
+ * Program by: Matthew Low
  * Version 2.1
+ * contact: Low.m@Northeastern.edu
  */
- 
- //Including external libraries to assist the program.
-#include <LiquidCrystal_I2C.h>
-#include <ShiftOutX.h>
-#include <ShiftPinNo.h>
-//create an instance of shiftOutX to help with managing the shift registers.
-//shiftOutX(_latchPin, _dataPin, _clockPin, _bitOrder, _NofRegisters);
-shiftOutX regOne(8, 11, 12, MSBFIRST, 4);
 
-//Create a class to help with managing the data for each city. 
+#include <ShiftOutX.h> //Helps with the shift registers
+#include <ShiftPinNo.h> //helps with the SR pin numbers, otherwise they grow large and unweildly.
+
+//shiftOutX(_latchPin, _dataPin, _clockPin, _bitOrder, _NofRegisters);
+shiftOutX regOne(8,11,12,MSBFIRST,4);
+
+
+//City class is designed to help manage data for each city induvidually. The cities are stored in an array of city objects.
 class City {
 private:
   //input and output pins are unique to each city
-  //led state is 0 for red and 1 for green, 2 is for blinking red
+  //led state is 0 for off and 1 for green, 2 is for blinking red
   //failed indicates wheter the city works
   //The pin assignments are made unique to each city to allow easy adjustment later.
-  int inputPin, outputPin, ledState, rank, redLedPin, greenLedPin;
-  bool isFailed, outputState;
+  int inputPin, outputPin, ledState;
+  long redLedPin, greenLedPin;
+  bool isFailed;
   String cityName;
   
-  //This is the constructor function
- public: City(String citName, int input, int output, int led, int r, bool failed, int redledP, int greenled){
-  cityName = citName;
-  inputPin = input;
-  outputPin = output;
-  ledState = led;
-  rank = r;
+  //This is the constructor function for the city class
+ public: City(String citName, int input, int output, int led, bool failed, long redLed, long greenLed){
+  cityName = citName; //name to send to MATLAB
+  inputPin = input; //input pin num (On Arduino board)
+  outputPin = output; //output pin num (On shift register), later decided to not use this.
   isFailed = failed;
-  redLedPin = redledP;
-  greenLedPin = greenled;
-  }
+  ledState = led; 
+  redLedPin = redLed; //the red pin for this city on the shift register
+  greenLedPin = greenLed; //green led pin on the shift register for this city. Tied to the output port for the city (thus no need for output pin)
   
-   //get and set functions below
+  }
+   //get and set functions below to help with managing the cities.
   public: int getInputPin(){
     return inputPin;
   }
-
   public: String getName(){
     return cityName;
   }
-
-  public: int getOutputPin(){
+  public: long getOutputPin(){
     return outputPin;
   }
-
   public: int getLedState(){
     return ledState;
   }
-
-  public: int getRank(){
-    return rank;
-  }
-
-  public: bool getIsFailed(){
-    return isFailed;
-  }
-
-  public: int getRedLedPin(){
-    return redLedPin;
-  }
-  
-  public: int getGreenLedPin(){
-    return greenLedPin;
-  }  
-
-//these set functions shouldn't be nessesary for our purposes.
-  //public: void setInputPin(int pin){
-  //  inputPin = pin;
-  //}
-
-//  public: void setOutputPin(int pin){
- //   outputPin = pin;
- // }
-
-//
   public: void setLedState(int state){
     ledState = state;
   }
-
- // public: void setRank(int r){
-  //  rank = r;
- // }
-
- // public: void setIsFailed(bool fail){
-  //  isFailed = fail;
-  //}
-
- // public: void setLedPin(int pin){
- //   ledPin = pin;
- // }
-//These functions fail or unfail a city, changing settings so code later can adjust outputs.
+  public: bool getIsFailed(){
+    return isFailed;
+  }
+  public: long getRedLedPin(){
+    return redLedPin;
+  }
+  public: long getGreenLedPin(){
+    return greenLedPin;
+  }  
+//These functions fail or unfail a city,
+//changing settings so code later can adjust outputs.
 public: void failCity(){
     isFailed = true;
     ledState = 2;
-    outputState = false;
   }
 
   public: void unfailCity(){
     isFailed = false;
     ledState = 0;
-    outputState = true;
+    regOne.pinOff(redLedPin);
   }
 }; //end of class definition
 
-//Set to the number of cities in the array because C++ makes finding array lengths more difficult.
 static int NUM_CITIES = 8; 
-
-//define pinouts here
-//City(name, input pin, output pin, led state, rank,is failed,red led pin, green led pin)
-City c1("Las Vegas",2,shPin1,0,0,false,shPin9,shPin17);
-City c2("Spokane",3,shPin2,0,1,false,shPin10,shPin18);
-City c3("Denver",4,shPin3,0,2,false,shPin11,shPin19);
-City c4("Dallas",5,shPin4,0,3,false,shPin12,shPin20);
-City c5("Kansas City",6,shPin5,0,4,false,shPin13,shPin21);
-City c6("Chicago",7,shPin6,0,5,false,shPin14,shPin22);
-City c7("Charlotte",9,shPin7,0,6,false,shPin15,shPin23);
-City c8("Washington D.C.",10,shPin8,0,7,false,shPin16,shPin24);
+//define each city, then create an array with each of these cities. The shPinXX refers to shift register pins and is defined in the imported library
+City c1("Las Vegas",2,shPin1,0,false,shPin9,shPin17);
+City c2("Spokane",4,shPin2,0,false,shPin10,shPin18);
+City c3("Denver",3,shPin3,0,false,shPin11,shPin19);
+City c4("Kansas City",5,shPin4,0,false,shPin12,shPin20);
+City c5("Dallas",6,shPin5,0,false,shPin13,shPin21);
+City c6("Chicago",7,shPin6,0,false,shPin14,shPin22);
+City c7("Charlotte",9,shPin7,0,false,shPin15,shPin23);
+City c8("Washington D.C.",10,shPin8,0,false,shPin16,shPin24);
 //create the array of city objects for use later.
-City cityArr[8] = {c1,c2,c3,c4,c5,c6,c7,c8};
-
+City cityArr[8] = {c1,c2,c3,c4,c5,c6,c7,c8};  //stores the cities
 //more pin definitions.
-int buttonPin = 13;
-int finishPin = A0;
-
-
-void setup(){
-regOne.allOff();
-//defining pinmodes
+int buttonPin = 13; //for reset purposes
+int finishPin = A0; //the pin Boston is connected to so the board knows when the game is over
+int bostonOutput = A3; //green LED for boston
+bool bosState = false; //false when boston is disconnected
+long count = 0;
+void setup() {
+regOne.allOff(); //make sure board is reset
 pinMode(buttonPin, INPUT);
-/* These are only used if the output pins are NOT on the shift register.
-pinMode(c1.getOutputPin(),OUTPUT);
-pinMode(c2.getOutputPin(),OUTPUT);
-pinMode(c3.getOutputPin(),OUTPUT);
-pinMode(c4.getOutputPin(),OUTPUT);
-pinMode(c5.getOutputPin(),OUTPUT);
-pinMode(c6.getOutputPin(),OUTPUT);
-pinMode(c7.getOutputPin(),OUTPUT);
-pinMode(c8.getOutputPin(),OUTPUT);
-*/
-pinMode(c1.getInputPin(),INPUT);
+pinMode(bostonOutput, OUTPUT);
 pinMode(c2.getInputPin(),INPUT);
 pinMode(c3.getInputPin(),INPUT);
 pinMode(c4.getInputPin(),INPUT);
@@ -151,122 +105,98 @@ pinMode(c5.getInputPin(),INPUT);
 pinMode(c6.getInputPin(),INPUT);
 pinMode(c7.getInputPin(),INPUT);
 pinMode(c8.getInputPin(),INPUT);
-/* Only used if these pins are NOT on the shift register.
-pinMode(c1.getRedLedPin(),OUTPUT);
-pinMode(c2.getRedLedPin(),OUTPUT);
-pinMode(c3.getRedLedPin(),OUTPUT);
-pinMode(c4.getRedLedPin(),OUTPUT);
-pinMode(c5.getRedLedPin(),OUTPUT);
-pinMode(c6.getRedLedPin(),OUTPUT);
-pinMode(c7.getRedLedPin(),OUTPUT);
-pinMode(c8.getRedLedPin(),OUTPUT);
-pinMode(c1.getGreenLedPin(),OUTPUT);
-pinMode(c2.getGreenLedPin(),OUTPUT);
-pinMode(c3.getGreenLedPin(),OUTPUT);
-pinMode(c4.getGreenLedPin(),OUTPUT);
-pinMode(c5.getGreenLedPin(),OUTPUT);
-pinMode(c6.getGreenLedPin(),OUTPUT);
-pinMode(c7.getGreenLedPin(),OUTPUT);
-pinMode(c8.getGreenLedPin(),OUTPUT); */
-//serial used for debugging.
-  Serial.begin(9600);
-  Serial.println("Initializing Game");
-  for(int i = 0;i < NUM_CITIES;i++){
-     Serial.print(cityArr[i].getName());
-     Serial.print(" Failed: ");
-     Serial.println(cityArr[i].getIsFailed());
-  }
+pinMode(A1,INPUT);
+pinMode(finishPin, INPUT);
+Serial.begin(9600);
+Serial.println("Initializing Game");
+randomSeed(analogRead(A0));//random seed
+for(int i = 0;i < NUM_CITIES;i++){
+  Serial.print(cityArr[i].getName());
+  Serial.print(" Failed: ");
+  Serial.println(cityArr[i].getIsFailed());
 }
-long count = 0;
-void loop(){
-//Serial.println(count);
-//Executes the loop if there has been 1 minute of inactivity or button is pressed.
-if((count > 60000)){
-  Serial.println("Beginning Randomization Process");
-//makes all cities working before one is randomly failed.
-for(int i=0;i<NUM_CITIES;i++){
- if(cityArr[i].getIsFailed()){ 
-  cityArr[i].unfailCity(); 
-  Serial.println(cityArr[i].getName() + " Has been unfailed sucessfully");
- }else{
-  Serial.println(cityArr[i].getName() + "Did not need to be unfailed");
- }
- //randomly picks connected cities to fail. Will loop infintley until a city is picked.
- bool isComplete = false;
- bool noneAval = true;
-  for(int i = 0; i < NUM_CITIES ; i++){
-    if(cityArr[i].getLedState()== 1){
-      noneAval = false;
-      Serial.println(cityArr[i].getName() + "Is currently connected (can be failed)");
+}
+void loop() { //Loops forever through game usage:
+  int buttonState = digitalRead(buttonPin);
+  if(buttonState == 1){ //make the cycle end if the button is pressed
+    count = 45001;
+  }
+if((count>45000)/*or button, which makes this happen preemtivley*/){
+  Serial.println("MATLAB Reset"); //command to reset the game on MATLAB screen
+  Serial.println("Unfailing all cities");
+  for(int i=0;i<NUM_CITIES;i++){
+    if(cityArr[i].getIsFailed()){ 
+    cityArr[i].unfailCity(); 
+    Serial.println(cityArr[i].getName() + " has been unfailed sucessfully."); //debugging use
+    }else{
+      Serial.println(cityArr[i].getName() + " did not need to be unfailed.");
     }
+  }//end for
+  int randomNum;
+  int loopCheck = 0;
+  //makes sure the city to be failed is connected
+  while(true){
+  randomNum = random(1,8);
+  loopCheck++;
+  if(cityArr[randomNum].getLedState()==1 || loopCheck >= 5){
+    break;
   }
-  int randomNum = random(0,7);
-  if(noneAval){
-    Serial.println("No cities avalable for failure");
-  }
-  if(!noneAval){
-  if(cityArr[randomNum].getLedState()==1){
-    cityArr[randomNum].failCity();
-    Serial.println(cityArr[i].getName() + "IS FAILED");
-    isComplete = true; 
- }
-  }
- }
 }
- count = 0; //1 min clock is reset after the new city is failed.
- //end of changing failed city loop
+  cityArr[randomNum].failCity();
+  Serial.println("CITY " + cityArr[randomNum].getName());
+  
+  count = 0;
+  
+}//end if counter
 
-bool flashState = false; //variable to help blinking the LED.
+//LED AND POWER LOGIC LOOP
 for(int i = 0; i < NUM_CITIES; i++){
-  if(digitalRead(cityArr[i].getInputPin()) == HIGH){
+  //detects if city has become connected
+if((digitalRead(cityArr[i].getInputPin())==HIGH)&&(cityArr[i].getIsFailed()==false)){
+    if(cityArr[i].getLedState() == 0){
+      Serial.print(cityArr[i].getName());
+      Serial.println(" is now recieving power.");
+      count = 0;
+      cityArr[i].setLedState(1);
+      regOne.pinOff(cityArr[i].getRedLedPin());
+      regOne.pinOn(cityArr[i].getOutputPin());
+      regOne.pinOn(cityArr[i].getGreenLedPin());
+    }
+
+    //detects if a city has become disconnected
+  }else if((digitalRead(cityArr[i].getInputPin())==LOW)&&(cityArr[i].getIsFailed()==false)){
     if(cityArr[i].getLedState() == 1){
-     count = 0;//clock is reset because user activity is detected.
-     if(cityArr[i].getLedState() != 2){
-          Serial.println(cityArr[i].getName() + "IS RECIEVING  NEW INPUT");
-        cityArr[i].setLedState(1);
-      }else{
-        
-        cityArr[i].setLedState(0);
-    
-    }
-    }
-      
-  }//end of if else logic block
-
-  if(cityArr[i].getLedState() == 0){
-    regOne.pinOff(cityArr[i].getOutputPin());
+      Serial.print(cityArr[i].getName());
+      Serial.print(" is no longer recieving input.");
+      count = 0;
+          cityArr[i].setLedState(0);
     regOne.pinOff(cityArr[i].getGreenLedPin());
-    regOne.pinOff(cityArr[i].getRedLedPin()); 
-  }else if(cityArr[i].getLedState() == 1){
+    regOne.pinOff(cityArr[i].getRedLedPin());
     regOne.pinOff(cityArr[i].getOutputPin());
+    }
+  //makes sure led is red if the city is failed.
+  }else if(cityArr[i].getIsFailed()==true){
+    cityArr[i].setLedState(2);
+    regOne.pinOn(cityArr[i].getRedLedPin());
     regOne.pinOff(cityArr[i].getGreenLedPin());
-    regOne.pinOn(cityArr[i].getRedLedPin()); 
-  }else{ 
-    //code below blinks the led without putting delays into the code.
-    //this allows the code to continue looping at 1000 Hz instead of 1 Hz.
     regOne.pinOff(cityArr[i].getOutputPin());
-    if((count%1000)==0){
-      if(flashState){
-        Serial.println("Blinking LED off");
-        regOne.pinOff(cityArr[i].getRedLedPin());
-        flashState = false;
-      }else{
-        
-       regOne.pinOn(cityArr[i].getRedLedPin());
-       flashState = true;
-    }   
-  } 
-}//end of if else logic block
-
-if(digitalRead(finishPin==HIGH)){
-  //do something here when they win.
-  //count = 0;
+    }
+}//end for
+int finishState = digitalRead(finishPin);
+if((finishState == 1)&& (bosState==false)){
+  digitalWrite(bostonOutput, HIGH);
+  bosState = true;
+  Serial.println("MATLAB BOSTON ON"); //command to tell MATLAB game is complete
+ // count = 0;
+}
+if((finishState == 0)&&(bosState ==true)){
+  digitalWrite(bostonOutput, LOW);
+  bosState = false;
 }
 
-}//end of for loop
-
-
-
-delay(10); //ensures code doesn't run too fast for the timer. We don't need 1ms resolution however.
-count+=20; //adjust the scaling factor here.
+if(count%1000==0){
+  Serial.println(count);
+}
+count+=500;
+delay(500);
 }
